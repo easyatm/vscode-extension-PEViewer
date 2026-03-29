@@ -14,6 +14,35 @@ export function activate(context: vscode.ExtensionContext) {
 	// 注册我们的自定义编辑器提供者
 	context.subscriptions.push(PEEditorProvider.register(context));
 
+	// 注册打开文件的命令
+	const openWithPEViewerCommand = vscode.commands.registerCommand('peviewer.openWithPEViewer', async (uri?: vscode.Uri) => {
+		if (!uri) {
+			// 如果没有URI，从活动编辑器获取
+			const activeEditor = vscode.window.activeTextEditor;
+			if (activeEditor) {
+				uri = activeEditor.document.uri;
+			} else {
+				// 让用户选择文件
+				const fileUri = await vscode.window.showOpenDialog({
+					canSelectFiles: true,
+					canSelectFolders: false,
+					canSelectMany: false,
+					openLabel: 'Open with PEViewer'
+				});
+				if (fileUri && fileUri[0]) {
+					uri = fileUri[0];
+				}
+			}
+		}
+
+		if (uri) {
+			// 使用自定义编辑器打开文件
+			await vscode.commands.executeCommand('vscode.openWith', uri, 'peviewer.peViewer');
+		}
+	});
+
+	context.subscriptions.push(openWithPEViewerCommand);
+
 	// 命令已在 package.json 文件中定义
 	// 现在使用 registerCommand 提供命令的实现
 	// commandId 参数必须与 package.json 中的命令字段匹配
