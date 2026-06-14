@@ -17,7 +17,7 @@
 </head>
 <body>
 	<div class="pe-editor-container">
-		<div class="pe-sidebar">
+		<div class="pe-sidebar" id="peSidebar">
 			<div class="pe-tree-header" id="peTreeHeader">PEViewer - PE文件结构</div>
 			<div class="pe-tree" id="peTree">
 				<!-- PE文件结构树 -->
@@ -52,9 +52,13 @@
 				</details>
 			</div>
 		</div>
+		<div class="pe-resizer" id="peResizer"></div>
 		<div class="pe-content">
 			<div class="pe-details-header">
 				<span id="detailsTitle"><span id="detailsTitleText">详细信息</span></span>
+				<div class="pe-search-container" id="peSearchContainer" style="display: none;">
+					<input type="text" class="pe-search-input" id="peSearchInput" placeholder="搜索函数..." />
+				</div>
 			</div>
 			<div class="pe-details" id="peDetails">
 				<!-- 详细信息将通过JavaScript动态生成 -->

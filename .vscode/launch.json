@@ -16,6 +16,14 @@
 			"outFiles": [
 				"${workspaceFolder}/dist/**/*.js"
 			],
+			"sourceMaps": true,
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/**",
+				"!**/node_modules/**"
+			],
+			"sourceMapPathOverrides": {
+				"webpack://peviewer/./src/*": "${workspaceFolder}/src/*"
+			}
 			//"preLaunchTask": "${defaultBuildTask}"
 		}
 	]

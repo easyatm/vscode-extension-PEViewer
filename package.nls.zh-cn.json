@@ -1,0 +1,6 @@
+{
+    "extension.displayName": "PE 查看器",
+    "extension.description": "PE 文件结构查看与分析扩展",
+    "command.category": "PE查看器",
+    "command.openWithPEViewer.title": "使用 PE查看器 打开"
+}

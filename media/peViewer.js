@@ -12,6 +12,96 @@
     /** @type {HTMLElement | null} */
     const detailsTitle = document.getElementById("detailsTitle");
 
+    // 侧边栏相关元素
+    const peSidebar = /** @type {HTMLElement | null} */ (document.getElementById("peSidebar"));
+    const peResizer = document.getElementById("peResizer");
+    const peSearchContainer = document.getElementById("peSearchContainer");
+    const peSearchInput = /** @type {HTMLInputElement | null} */ (document.getElementById("peSearchInput"));
+
+    // 恢复保存的侧边栏宽度（localStorage 跨会话持久化）
+    const SIDEBAR_WIDTH_KEY = "peviewer.sidebarWidth";
+    const savedWidth = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    if (savedWidth && peSidebar) {
+        const w = parseInt(savedWidth, 10);
+        if (w >= 180 && w <= 600) {
+            peSidebar.style.width = w + "px";
+        }
+    }
+
+    // 侧边栏拖拽调整宽度
+    if (peResizer && peSidebar) {
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+
+        peResizer.addEventListener("mousedown", (e) => {
+            isResizing = true;
+            startX = e.clientX;
+            startWidth = peSidebar.getBoundingClientRect().width;
+            peResizer.classList.add("dragging");
+            document.body.style.cursor = "col-resize";
+            document.body.style.userSelect = "none";
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isResizing) { return; }
+            const dx = e.clientX - startX;
+            const newWidth = Math.min(600, Math.max(180, startWidth + dx));
+            peSidebar.style.width = newWidth + "px";
+        });
+
+        document.addEventListener("mouseup", () => {
+            if (!isResizing) { return; }
+            isResizing = false;
+            peResizer.classList.remove("dragging");
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+            // 保存宽度到 localStorage（关闭面板后依然保留）
+            const width = Math.round(peSidebar.getBoundingClientRect().width);
+            localStorage.setItem(SIDEBAR_WIDTH_KEY, String(width));
+        });
+    }
+
+    // 搜索输入过滤
+    if (peSearchInput) {
+        peSearchInput.addEventListener("input", () => {
+            filterTableRows(peSearchInput.value);
+        });
+    }
+
+    /**
+     * 过滤表格行（实时搜索）
+     * @param {string} searchText
+     */
+    function filterTableRows(searchText) {
+        if (!peDetails) { return; }
+        const rows = peDetails.querySelectorAll("tbody tr");
+        const lower = searchText.toLowerCase();
+        rows.forEach((row) => {
+            const text = (row.textContent || "").toLowerCase();
+            /** @type {HTMLElement} */ (row).style.display = text.includes(lower) ? "" : "none";
+        });
+    }
+
+    /**
+     * 显示搜索框并重置
+     */
+    function showSearch() {
+        if (peSearchContainer) { peSearchContainer.style.display = ""; }
+        if (peSearchInput) {
+            peSearchInput.value = "";
+            peSearchInput.placeholder = t("searchPlaceholder");
+        }
+    }
+
+    /**
+     * 隐藏搜索框
+     */
+    function hideSearch() {
+        if (peSearchContainer) { peSearchContainer.style.display = "none"; }
+        if (peSearchInput) { peSearchInput.value = ""; }
+    }
+
     // 模板缓存
     const templates = {
         importDllItem: /** @type {HTMLTemplateElement | null} */ (document.getElementById("tmpl-import-dll-item")),
@@ -218,13 +308,36 @@
         const { type, body, requestId } = e.data;
         switch (type) {
             case "init": {
-                parsedData = body.value;
                 let lang = body.language || "en";
                 if (lang.startsWith("zh")) {
                     currentLanguage = "zh-cn";
                 } else {
                     currentLanguage = "en";
                 }
+
+                // 文件格式校验失败，渲染友好错误提示
+                if (body.invalidFile) {
+                    const container = document.querySelector(".pe-editor-container");
+                    if (container) {
+                        // 解析错误码，获取本地化消息
+                        let reasonText = body.reason || "";
+                        if (reasonText === "INVALID_PE_HEADER") {
+                            reasonText = t("invalidPEHeader");
+                        } else if (reasonText.startsWith("PARSE_FAILED:")) {
+                            reasonText = t("parseFailed") + "：" + reasonText.slice("PARSE_FAILED:".length);
+                        }
+                        container.innerHTML = `
+                            <div class="pe-invalid-file">
+                                <div class="pe-invalid-icon">&#x26A0;</div>
+                                <div class="pe-invalid-title">${t("invalidFileFormat")}</div>
+                                <div class="pe-invalid-reason">${reasonText}</div>
+                                <div class="pe-invalid-path">${body.fileName || ""}</div>
+                            </div>`;
+                    }
+                    return;
+                }
+
+                parsedData = body.value;
                 updateUILanguage();
                 buildTree();
                 return;
@@ -473,6 +586,9 @@
             }
             return;
         }
+
+        // 默认隐藏搜索框，具体视图中会按需显示
+        hideSearch();
 
         // 特殊处理
         if (itemId === "pe_header") {
@@ -798,6 +914,9 @@
 
         detailsTitle.textContent = `${t("exportFunctions")} (${t("totalFunctions").replace("{count}", parsedData.exports.functions.length)})`;
         peDetails.innerHTML = "";
+
+        // 显示搜索框
+        showSearch();
 
         const exportRows = parsedData.exports.functions.map((/** @type {ExportFunction} */ func) => {
             const decodedName = demangleFunctionName(func.name);
@@ -1351,6 +1470,9 @@
         detailsTitle.textContent = `${t("importFunctionsOverview")} (${t("importFunctionsCount").replace("{totalFunctions}", totalFunctions).replace("{dllCount}", parsedData.imports.length)})`;
         peDetails.innerHTML = "";
 
+        // 显示搜索框
+        showSearch();
+
         // 创建函数列表表格
         const funcRows = allFunctions.map((func) => [func.dll, func.name, func.type]);
 
@@ -1373,6 +1495,9 @@
             showEmptyMessage(`${dll.name} ${t("noImportsFound").toLowerCase()}`);
             return;
         }
+
+        // 显示搜索框
+        showSearch();
 
         // 只显示当前DLL的函数
         const funcRows = dll.functions.map((/** @type {ImportFunction} */ func) => {

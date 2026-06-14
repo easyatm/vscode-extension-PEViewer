@@ -42,17 +42,6 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(openWithPEViewerCommand);
-
-	// 命令已在 package.json 文件中定义
-	// 现在使用 registerCommand 提供命令的实现
-	// commandId 参数必须与 package.json 中的命令字段匹配
-	const disposable = vscode.commands.registerCommand('peviewer.helloWorld', () => {
-		// 此代码将在每次执行命令时执行
-		// 向用户显示消息框
-		vscode.window.showInformationMessage('来自 PEViewer 的 Hello World！');
-	});
-
-	context.subscriptions.push(disposable);
 }
 
 // This method is called when your extension is deactivated

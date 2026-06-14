@@ -14,7 +14,7 @@ interface ImportDLL {
     name: string;
     functions: ImportFunction[];
 }
-
+ 
 interface ExportFunction {
     name: string;
     ordinal: number;
@@ -62,9 +62,20 @@ class PEDocument extends Disposable implements vscode.CustomDocument {
         // 如果有备份，则读取备份。否则从工作区读取资源
         const dataFile = typeof backupId === "string" ? vscode.Uri.parse(backupId) : uri;
         const fileData = await PEDocument.readFile(dataFile);
-        const basicData = await Parse(Buffer.from(fileData));
-        const extendedData = await PEDocument.parseExtendedData(Buffer.from(fileData), basicData);
-        return new PEDocument(uri, fileData, extendedData, delegate);
+
+        // 校验 PE 文件头：前两个字节必须是 MZ（0x4D 0x5A）
+        if (fileData.length < 2 || fileData[0] !== 0x4D || fileData[1] !== 0x5A) {
+            // 不抛错，带着错误码创建文档，由前端根据语言包渲染友好提示
+            return new PEDocument(uri, fileData, {}, delegate, "INVALID_PE_HEADER");
+        }
+
+        try {
+            const basicData = await Parse(Buffer.from(fileData));
+            const extendedData = await PEDocument.parseExtendedData(Buffer.from(fileData), basicData);
+            return new PEDocument(uri, fileData, extendedData, delegate);
+        } catch (err: any) {
+            return new PEDocument(uri, fileData, {}, delegate, `PARSE_FAILED:${err?.message ?? err}`);
+        }
     }
 
     private static async readFile(uri: vscode.Uri): Promise<Uint8Array> {
@@ -510,18 +521,20 @@ class PEDocument extends Disposable implements vscode.CustomDocument {
     private readonly _uri: vscode.Uri;
     private _documentData: Uint8Array;
     private _parsedData: ExtendedPEData;
+    public readonly invalidReason?: string;
 
     private readonly _delegate: PEDocumentDelegate;
 
     private _onDidDispose: vscode.EventEmitter<void>;
     public onDidDispose: vscode.EventEmitter<void>["event"];
 
-    private constructor(uri: vscode.Uri, initialContent: Uint8Array, parsedData: any, delegate: PEDocumentDelegate) {
+    private constructor(uri: vscode.Uri, initialContent: Uint8Array, parsedData: any, delegate: PEDocumentDelegate, invalidReason?: string) {
         super();
         this._uri = uri;
         this._documentData = initialContent;
         this._parsedData = parsedData;
         this._delegate = delegate;
+        this.invalidReason = invalidReason;
         this._onDidDispose = this._register(new vscode.EventEmitter<void>());
         this.onDidDispose = this._onDidDispose.event;
     }
@@ -589,7 +602,7 @@ export class PEEditorProvider implements vscode.CustomEditorProvider<PEDocument>
     //#region CustomEditorProvider
 
     async openCustomDocument(uri: vscode.Uri, openContext: { backupId?: string }, _token: vscode.CancellationToken): Promise<PEDocument> {
-        const document: PEDocument = await PEDocument.create(uri, openContext.backupId, {
+        const document = await PEDocument.create(uri, openContext.backupId, {
             getFileData: async () => {
                 const webviewsForDocument = Array.from(this.webviews.get(document.uri));
                 if (!webviewsForDocument.length) {
@@ -623,7 +636,15 @@ export class PEEditorProvider implements vscode.CustomEditorProvider<PEDocument>
         // Wait for the webview to be properly ready before we init
         webviewPanel.webview.onDidReceiveMessage((e) => {
             if (e.type === "ready") {
-                if (document.uri.scheme === "untitled") {
+                if (document.invalidReason) {
+                    // 校验或解析失败，通知前端渲染友好错误提示
+                    this.postMessage(webviewPanel, "init", {
+                        invalidFile: true,
+                        reason: document.invalidReason,
+                        fileName: document.uri.fsPath,
+                        language: vscode.env.language,
+                    });
+                } else if (document.uri.scheme === "untitled") {
                     this.postMessage(webviewPanel, "init", {
                         untitled: true,
                         editable: true,

@@ -336,7 +336,11 @@ const locales = {
 		'na': 'N/A',
 		'clickToSaveIcon': '点击保存图标',
 		'bitSuffix': ' bit',
-		'versionInfoFields': '版本信息字段'
+		'versionInfoFields': '版本信息字段',
+		'searchPlaceholder': '搜索函数...',
+		'invalidFileFormat': '文件格式错误',
+		'invalidPEHeader': '不是有效的 PE 文件：文件头不包含 MZ 魔数（0x4D 0x5A）',
+		'parseFailed': 'PE 文件解析失败'
 	},
 	'en': {
 		// HTML文本
@@ -674,7 +678,11 @@ const locales = {
 		'na': 'N/A',
 		'clickToSaveIcon': 'Click to save icon',
 		'bitSuffix': ' bit',
-		'versionInfoFields': 'Version Information Fields'
+		'versionInfoFields': 'Version Information Fields',
+		'searchPlaceholder': 'Search functions...',
+		'invalidFileFormat': 'Invalid File Format',
+		'invalidPEHeader': 'Not a valid PE file: header does not contain MZ magic bytes (0x4D 0x5A)',
+		'parseFailed': 'PE file parse failed'
 	}
 };
 
